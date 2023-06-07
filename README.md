@@ -11,6 +11,4 @@ argued that this core principle has expanded; one scholar defined their new fram
 mechanism for burden-sharing of expenses and risk’ (Malone, 2000). The question posed here is
 how overarching has the UNSC become?
 
-Taking into consideration the aformentioned, this paper aims to look at the relationship UNSC
-membership has with international trade; the trade benefits countries receive through the medium
-of membership.
+To find out more, you can read the proposal and further information at www.calebblack.com
