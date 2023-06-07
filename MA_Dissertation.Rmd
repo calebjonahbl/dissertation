@@ -1,6 +1,6 @@
 ---
 title: "MA Dissertation (Exploratory)"
-author: "Caleb J. Black"
+author: "Caleb J Black"
 date: "2023-06-07"
 output: html_document
 ---
