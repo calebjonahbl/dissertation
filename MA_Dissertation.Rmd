@@ -1,0 +1,462 @@
+---
+title: "MA Dissertation (Exploratory)"
+author: "Caleb J. Black"
+date: "2023-06-07"
+output: html_document
+---
+
+```{r knit}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(tidyverse)
+library(igraph)
+library(ggnetwork)
+library(utils)
+library(ggraph)
+library(visNetwork)
+library(igraph)
+library(statnet)
+library(intergraph)
+library(ggplot2)
+library(ggnetwork)
+library(threejs)
+library(htmlwidgets)
+library(dplyr)
+library(reshape2)
+library(htmlwidgets)
+library(jsonlite)
+library(sna)
+library(multinet)
+library(Rcpp)
+library(RColorBrewer)
+library(broom)
+```
+
+```{r INITIAL data load}
+CMD_df_unique <- read_csv("Comb_Data_w:o_dates.csv")
+IMD_df <- as.data.frame(t(CMD_df_unique))
+test_IMD_df_1 <-IMD_df %>% select(V2, V3)
+test_df_cols_1_58<- IMD_df[1:58] 
+```
+
+```{r INITIAL screen and bind code}
+
+n = 58
+results <- list()
+
+for (i in 1:n) {
+res<- expand_grid(IMD_df[,i], IMD_df[,i])
+res$i <- i 
+results[[i]] <- res
+}
+MD_ONE <- do.call(rbind, results)
+
+results_2 <- list()
+
+for (i in 59:74) {
+res<- expand_grid(na.omit(IMD_df[,i]), na.omit(IMD_df[,i]))
+res$i <- i 
+results_2[[i]] <- res
+}
+MD_TWO <- do.call(rbind, results_2)
+
+results_3 <- list()
+
+for (i in 75:76) {
+res<- expand_grid(na.omit(IMD_df[,i]), na.omit(IMD_df[,i]))
+res$i <- i 
+results_3[[i]] <- res
+}
+MD_THREE <- do.call(rbind, results_3)
+
+results_4 <- list()
+
+
+for (i in 77:78) {
+res<- expand_grid(na.omit(IMD_df[,i]), na.omit(IMD_df[,i]))
+res$i <- i 
+results_4[[i]] <- res
+}
+MD_FOUR <- do.call(rbind, results_4)
+
+colnames(MD_ONE) <-c("from", "to")
+colnames(MD_TWO) <-c("from", "to")
+colnames(MD_THREE) <-c("from", "to")
+colnames(MD_FOUR) <-c("from", "to")
+
+CMD_df<- rbind(MD_ONE, MD_TWO, MD_THREE, MD_FOUR)
+
+CMD_df_unique<- unique(CMD_df[,c("from", "to")])
+
+
+```
+
+```{r INITIAL igraph & statnet}
+CMD_df_unique.igraph <- graph_from_data_frame(CMD_df_unique, directed = FALSE)
+
+CMD_df_unique.igraph <- simplify(CMD_df_unique.igraph)
+
+CMD_df_unique.stat <- asNetwork(CMD_df_unique.igraph)
+```
+
+```{r INITIAL igraph network}
+plot.igraph(CMD_df_unique.igraph, 
+            margin=-0,
+            arrow.mode="-")
+
+plot(CMD_df_unique.igraph, layout = layout_in_circle(CMD_df_unique.igraph))
+```
+
+```{r INITIAL ggplot network}
+set.seed(1)
+ggplot(CMD_df_unique.stat, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_edges(color = "grey60", alpha = 0.05, arrow = arrow(length = unit(2, "pt"), type = "open"))+
+  geom_nodes(color = "red1", alpha = 0.3, size = 2) +
+  geom_nodetext(aes( label = vertex.names ), size=3)+
+    ggtitle("UNSC Members") +
+  theme_blank()
+```
+
+```{r INITIAL threejs/graphjs network}
+#points3d(net.js, vertices(net.js), color="red", pch = V(CMD_df_unique.igraph)$name,
+         #size = 20)
+#jsw <- htmlwidgets::onRender(jsv, '
+  #function(el, x) {
+    #el.style.background = "transparent";
+#  }
+#')
+#htmlwidgets::saveWidget(jsw, "membermatrix3.html")
+```
+
+```{r INITIAL VisNetwork network}
+set.seed(2)
+visIgraph(CMD_df_unique.igraph, idToLabel = T, layout = "layout_nicely", physics = F, smooth = F, type = "full", layoutMatrix = "layout.norm")
+```
+
+```{r WITH TRADE DATA, TEST}
+trade_data <- read.csv("Trade_Data.csv")
+trade_data <- trade_data[, c("Country.1", "Country.2")]
+
+mem_countries<-c()
+
+#check weights
+trade_data_wt<-trade_data%>%
+  group_by(Country.1,Country.2)%>%
+  summarise(weight = n())%>%
+  filter(Country.1%in%mem_countries & Country.2%in%mem_countries) #assumes identical country names, otherwise countrycode
+
+length(unique(trade_data_wt$Country.1))
+length(unique(trade_data_wt$Country.2))
+unique(c(trade_data_wt$Country.1, trade_data_wt$Country.2))
+
+g_trade_wt <- graph_from_data_frame(trade_data_wt, directed = TRUE)%>%
+  as.undirected(., mode="collapse", edge.attr.comb="sum")
+
+
+g_trade <- graph_from_data_frame(trade_data, directed = FALSE)
+```
+
+```{r trade igraph & statnet}
+
+trade_unique.igraph <- graph_from_data_frame(trade_data, directed = FALSE)
+
+trade_unique.igraph <- simplify(trade_unique.igraph)
+
+trade_renamed <- as_data_frame(trade_unique.igraph)
+
+trade_renamed.stat <- asNetwork(trade_unique.igraph)
+
+```
+
+```{r ggplot trade network}
+set.seed(10)
+ggplot(trade_renamed.stat, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_edges(color = "grey60", alpha = 0.05, arrow = arrow(length = unit(2, "pt"), type = "open"))+
+  geom_nodes(color = "red1", alpha = 0.3, size = 2) +
+  geom_nodetext(aes( label = vertex.names ), size=3)+
+    ggtitle("UNSC MEMBER TRADE") +
+  theme_blank()
+```
+
+```{r threejs trade network}
+net.js <- graphjs(trade_unique.igraph, main="Trade Data", bg = "grey10", showLabels=F, stroke=F, 
+                  curvature=0.9, attraction=0.9, replusion=0.9, opacity = 1, edge.alpha = .1, 
+                  vertex.size = as.vector(table(trade_renamed$'1')[V(CMD_df_unique.igraph)$name] / 137))
+net.js$nodes[,2] <- NULL 
+net.js$nodes$label <- net.js$nodes$members$size/50
+net.js$nodes$size <- net.js$nodes$size/10
+vt2 <- points3d(net.js, vertices(net.js), color="red", pch = V(CMD_df_unique.igraph)$name,
+         size = 20)
+wvt2 <- htmlwidgets::onRender(vt2, '
+  function(el, x) {
+    el.style.background = "transparent";
+  }
+')
+htmlwidgets::saveWidget(wvt2, "tradedata2.html")
+```
+
+```{r VisNetwork trade network}
+set.seed(2)
+vt <- visIgraph(trade_unique.igraph, idToLabel = T, layout = "layout_nicely", physics = F, smooth = F, type = "full", layoutMatrix = "layout.norm")
+wvt <- htmlwidgets::onRender(vt, '
+  function(el, x) {
+    el.style.background = "transparent";
+  }
+')
+htmlwidgets::saveWidget(wvt, "tradedata.html")
+```
+
+```{r membership adjecency matrix}
+getwd()
+df <- read.csv('Comb_Data_w:o_dates.csv')
+countries <- df %>% unlist %>% unique
+countries <- countries[countries != '']
+adj.UNSC <- array(0, dim = c(length(countries), length(countries)), dimnames = list(countries, countries))
+for(k in 1 : nrow(df))
+{
+  row.length <- apply(df, 1, function (x) length(which(x != '')))[k]
+  for (i in 1 : row.length)
+  {
+    for (j in 1 : row.length) adj.UNSC[df[k, i], df[k, j]] <- adj.UNSC[df[k, i], df[k, j]] + 1
+    # adj.UNSC[df[k, i], df[k, i]] <- adj.UNSC[df[k, i], df[k, i]]
+  }
+}
+
+g.UNSC <- graph_from_adjacency_matrix(adj.UNSC, weighted = TRUE)
+g.UNSC <- as.undirected(g.UNSC)
+```
+
+```{r membership network}
+g <- graph_from_adjacency_matrix(adj.UNSC, mode = 'undirected', weighted = TRUE, diag = FALSE)
+edges.UNSC <- adj.UNSC %>% melt %>% rename(from = Var1, to = Var2, weight = value)
+UNSC.times <- diag(adj.UNSC)
+library(reshape2)
+e <- get.edgelist(g,names=FALSE)
+l <- layout.fruchterman.reingold
+V(g)$size <- 2 * UNSC.times ^ .75
+V(g)$frame.color <- NA
+E(g)$color <- alpha('grey50',E(g)$weight/max(E(g)$weight))
+V(g)$label <- NA
+# V(g)$label[secnum] <- sen
+V(g)$label.family <- "Helvetica"
+# V(g)$label.color[secnum] <- rainbow_hcl(8, end = 290, l = 40)[member[secnum]] #gray(0.25)
+V(g)$label.font <- 1.5
+plot(g,layout=l, edge.arrow.size=0) # pink dot is the “8th cluster” (3 + >8)
+```
+
+```{r membership centrality}
+diag(adj.UNSC) <- 0
+g.UNSC <- graph_from_adjacency_matrix(adj.UNSC, diag = FALSE)
+
+nodes <- data.frame(country = names(igraph :: evcent(g.UNSC)$vector), UNSC.cent = igraph :: evcent(g.UNSC)$vector)
+
+UNSC.cent.ordered <- sort(igraph :: evcent(g.UNSC)$vector, decreasing = T)
+
+
+adj.list <- as_adj_list(g)
+```
+
+```{r trade adjacency matrix}
+getwd()
+tdf <- read.csv('Trade_Data.csv')
+tdf <- tdf[, c("Country.1", "Country.2")]
+tdf_unique <- unique(tdf[,c("Country.1", "Country.2")])
+t.countries <- tdf_unique %>% unlist %>% unique
+
+countries[!countries %in% t.countries]
+t.countries[!t.countries %in% countries]
+
+countries <- countries[countries != '']
+adj.trade <- array(0, dim = c(length(countries), length(countries)), dimnames = list(countries, countries))
+for (k in 1 : nrow(tdf))
+{
+  if (tdf$Country.1[k] %in% countries & tdf$Country.2[k] %in% countries)
+  {
+    adj.trade[tdf$Country.1[k], tdf$Country.2[k]] <-  adj.trade[tdf$Country.1[k], tdf$Country.2[k]] + 1
+    adj.trade[tdf$Country.2[k], tdf$Country.1[k]] <-  adj.trade[tdf$Country.1[k], tdf$Country.2[k]]
+  }
+}
+
+g.trade <- graph_from_adjacency_matrix(adj.trade, weighted = TRUE, diag = FALSE)
+g.trade <- as.undirected(g.trade)
+```
+
+```{r tidying up matrix}
+mapping <- data.frame(g.UNSC = V(g.UNSC)$name, g.trade = V(g.trade)$name)
+
+V(g.trade)$name <- mapping$g.UNSC[match(V(g.trade)$name, mapping$g.trade)]
+
+common_countries <- intersect(V(g.UNSC)$name, V(g.trade)$name)
+
+g.trade <- induced_subgraph(g.trade, common_countries)
+
+V(g.UNSC)$name
+V(g.trade)$name
+
+```
+
+```{r trade centrality}
+nodes <- data.frame(country = names(igraph :: evcent(g.UNSC)$vector), UNSC.times = diag(adj.UNSC), UNSC.cent = igraph :: evcent(g.UNSC)$vector, trade.cent = igraph :: evcent(g.trade)$vector)
+nodes$index <- nodes$UNSC.cent / nodes$trade.cent
+
+sort(igraph :: evcent(g.UNSC)$vector, decreasing = T)
+
+edges.trade <- adj.trade %>% melt %>% rename(from = Var1, to = Var2, weight = value)
+
+Data_Summary <- summary(lm(nodes$UNSC.cent ~ nodes$trade.cent))
+```
+
+```{r looking for uncoupled countries}
+t.countries[!t.countries %in% countries]
+```
+
+```{r evcent graph}
+plot(nodes$UNSC.cent, nodes$trade.cent)
+text(nodes$UNSC.cent, nodes$trade.cent, labels = countries, pos = 3)
+```
+
+```{r evcent trade density graph}
+plot(density(nodes$trade.cent))
+```
+
+```{r evcent membership density graph}
+plot(density(nodes$UNSC.cent))
+```
+
+```{r}
+edges.trade <- adj.trade %>% melt %>% rename(from = Var1, to = Var2, weight = value)
+trade.times <- diag(adj.trade)
+library(reshape2)
+e <- get.edgelist(g,names=FALSE)
+l <- layout.fruchterman.reingold
+V(g)$size <- 2 * trade.times ^ 1
+V(g)$frame.color <- NA
+E(g)$color <- alpha('grey50',E(g)$weight/max(E(g)$weight))
+V(g)$label <- NA
+V(g)$label.family <- "Helvetica"
+V(g)$label.font <- 1.5
+plot(g,layout=l, edge.arrow.size=0)
+```
+
+```{r}
+unsc_corr_matrix <- cor(adj.UNSC)
+unsc_dist_matrix <- sqrt(2*(1 - unsc_corr_matrix))
+
+trade_corr_matrix <- cor(adj.trade)
+trade_dist_matrix <- sqrt(2*(1 - trade_corr_matrix))
+```
+
+```{r}
+tdf$pair <- apply(tdf[, c("Country.1", "Country.2")], 1, function(x) paste(sort(x), collapse = "-"))
+
+tdf_appearances <- table(tdf$pair)
+
+count_AB <- tdf_appearances["Belgium-United Kingdom"]
+
+print(count_AB)
+```
+
+```{r trade descriptive statistics}
+gc <- clusters(g.trade)$membership
+p_gc <- sum(gc == which.max(tabulate(gc))) / vcount(g.trade) * 100
+p_unconnected <- length(which(igraph :: degree(g.trade) == 0)) / vcount(g.trade) * 100
+
+dens_trade <- igraph :: graph.density(g.trade)
+
+deg_trade <- igraph :: degree(g.trade)
+degav_trade <- mean(deg_trade)
+
+degdis_trade <- igraph :: degree_distribution(g.trade)
+degdisav_trade <- mean(degdis_trade)
+
+tran_trade <- igraph :: transitivity(g.trade, type = "global")
+```
+
+```{r UNSC descriptive statistics}
+g_unsc <- clusters(g.UNSC)$membership
+p_unsc <- sum(g_unsc == which.max(tabulate(g_unsc))) / vcount(g.UNSC) * 100
+unsc_unconnected <- length(which(igraph :: degree(g.UNSC) == 0)) / vcount(g.UNSC) * 100
+igraph :: is.connected(g.UNSC)
+
+diam_unsc <- diameter(g.UNSC)
+
+dens_unsc <- igraph :: graph.density(g.UNSC)
+
+deg_UNSC <- igraph :: degree(g.UNSC)
+degav_UNSC <- mean(deg_UNSC)
+
+degdis_UNSC <- igraph :: degree_distribution(g.UNSC)
+degdisav_UNSC <- mean(degdis_UNSC)
+
+tran_UNSC <- igraph :: transitivity(g.UNSC, type = "global")
+```
+
+```{r network substructure}
+UNSC_cliques <- maximal.cliques(g.UNSC)
+length(UNSC_cliques)
+UNSC_triads <- triad_census(g.UNSC)
+UNSC_dyad <- dyad_census(g.UNSC)
+##
+trade_cliques <- maximal.cliques(g.trade)
+length(trade_cliques)
+trade_traids <- triad_census(g.trade)
+trade_dyad <- dyad_census(g.trade)
+```
+
+```{r cluster analysis}
+g.UNSC <- as.undirected(g.UNSC)
+member_cluster <- cluster_walktrap(g.UNSC)
+trade_cluster <- cluster_walktrap(g.trade)
+num_mcluster <- length(member_cluster)
+num_tcluster <- length(trade_cluster)
+common_nodes <- intersect(V(g.UNSC), V(g.trade))
+member_assignments1 <- membership(member_cluster)[common_nodes]
+trade_assignments1 <- membership(trade_cluster)[common_nodes]
+jaccard_index <- length(intersect(member_assignments1, trade_assignments1)) / length(union(member_assignments1, trade_assignments1))
+library(mclust)
+rand_index <- adjustedRandIndex(member_assignments1, trade_assignments1)
+```
+
+```{r clique structure}
+#clique_sizes <- 3:15
+#cliques_list <- lapply(clique_sizes, function(size) cliques(g.UNSC, min = size/2, max = size/2))
+
+#all_cliques <- cliques(g.trade)
+
+#clique_sizes <- sapply(all_cliques, length)
+
+#cat("Number of cliques:", length(all_cliques), "\n")
+#cat("Sizes of the largest 10 cliques:", head(sort(clique_sizes, decreasing = TRUE), 10))
+
+#Although this code, in theory, should work, my computer is unable to load it.
+```
+
+```{r community}
+unsc_communities <- cluster_louvain(g.UNSC)
+trade_communities <- cluster_louvain(g.trade)
+unsc_communities
+combined_communities <- graph.union(g.UNSC, g.trade)
+vertex.colors <- rep(NA, vcount(combined_communities))
+vertex.colors[1:vcount(g.UNSC)] <- membership(unsc_communities)
+vertex.colors[(vcount(g.trade) + 1):vcount(combined_communities)] <- membership(trade_communities)
+set.seed(90)
+visIgraph(combined_communities, idToLabel = T, layout = "layout_nicely", physics = F, smooth = F, type = "full", layoutMatrix = "layout.norm")
+```
+
+```{r}
+UNSC_crossings <- igraph :: crossing(unsc_communities, g.UNSC)
+trade_crossings <- igraph :: crossing(trade_communities, g.trade)
+```
+
+```{r}
+#trade.cent.ordered <- sort(igraph :: evcent(g.trade)$vector, decreasing = T)
+
+high_trade_cent <- subset(g.trade, nodes$trade.cent > 0.6, select = -c(nodes))
+
+H_H_cent <- lm(nodes$trade.cent ~ nodes$UNSC.cent, data = high_trade_cent)
+
+```
+
+
